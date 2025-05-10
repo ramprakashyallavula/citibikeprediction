@@ -10,12 +10,25 @@ logger = logging.getLogger(__name__)
 
 
 def set_mlflow_tracking():
-    """
-    Set up MLflow tracking server credentials and URI.
-    """
-    uri = os.environ["MLFLOW_TRACKING_URI"]
+    import os
+    import mlflow
+    import logging
+
+    username = "ramprakashyallavula"
+    token = "1859fb48923c7670cd696fa2711687f3eb946a35"
+
+    # Set tracking URI with plain https (no embedded token)
+    uri = "https://dagshub.com/ramprakashyallavula/citibike_ride_prediction.mlflow"
     mlflow.set_tracking_uri(uri)
-    logger.info("MLflow tracking URI and credentials set.")
+
+    # Set authentication manually
+    os.environ["MLFLOW_TRACKING_USERNAME"] = username
+    os.environ["MLFLOW_TRACKING_PASSWORD"] = token
+
+    # Optional: log to confirm
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info("MLflow tracking URI and credentials set via code.")
 
     return mlflow
 

@@ -2,7 +2,7 @@ name: citibike_rides_hourly_inference_pipeline
 
 on:
   schedule:
-    - cron: "5 * * * *"  # Runs every hour
+    - cron: '*/20 * * * *'  # Runs every 20 minutes
   workflow_dispatch: {} 
 
 jobs:

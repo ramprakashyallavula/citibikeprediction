@@ -6,24 +6,6 @@ import streamlit as st
 import time
 import streamlit as st
 
-# Add reconnect button and retry logic
-if st.button("🔄 Reconnect to Server"):
-    st.info("Trying to reconnect...")
-    for i in range(5):
-        st.write(f"Attempt {i+1}...")
-        try:
-            # Try to trigger some small function to test connection
-            import socket
-            socket.gethostbyname('render.com')  # Dummy connectivity check
-            st.success("Reconnected successfully!")
-            st.experimental_rerun()  # Refresh the app
-            break
-        except Exception as e:
-            st.warning(f"Failed to reconnect: {e}")
-            time.sleep(3)
-    else:
-        st.error("Could not reconnect. Please refresh the page or try again later.")
-
 # Add project root to PYTHONPATH
 parent_dir = str(Path(__file__).parent.parent)
 sys.path.append(parent_dir)

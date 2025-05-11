@@ -1,7 +1,7 @@
 name: citibike_rides_model_training_pipeline
 on:
   schedule:
-    - cron: '0 0 * * 1'  # Runs every Monday at midnight
+    - cron: '0 0 * * *'  # Runs every hour
   workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:

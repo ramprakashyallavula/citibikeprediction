@@ -51,7 +51,7 @@ def create_citibike_map(shapefile_gdf, prediction_data):
     gdf = shapefile_gdf.copy()
     gdf = gdf.merge(
         prediction_data[["pickup_location_id", "predicted_demand"]],
-        left_on="stationid",   # adjust based on JC shape file column
+        left_on="stationid",
         right_on="pickup_location_id",
         how="left"
     )
@@ -85,6 +85,14 @@ def create_citibike_map(shapefile_gdf, prediction_data):
             localize=True
         )
     ).add_to(m)
+    
+    for _, row in gdf.iterrows():
+        if pd.notna(row["predicted_demand"]):
+            folium.Marker(
+                location=[row.geometry.y, row.geometry.x],
+                popup=f"Station ID: {row['stationid']}<br>Predicted Demand: {int(row['predicted_demand'])}",
+                icon=folium.Icon(icon="map-marker", prefix="fa", color="blue")
+            ).add_to(m)
 
     st.session_state.map_obj = m
     st.session_state.map_created = True

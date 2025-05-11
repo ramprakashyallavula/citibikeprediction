@@ -1,7 +1,7 @@
 name: citibike_rides_hourly_features_pipeline
 on:
   schedule:
-    - cron: "0 * * * *"  # Runs every hour
+    - cron: '*/20 * * * *'  # Runs every 2o minutes
   workflow_dispatch: {}  # Allows manual triggering of the workflow
 
 jobs:

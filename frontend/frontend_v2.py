@@ -148,8 +148,14 @@ st.dataframe(top10[["pickup_location_id", "predicted_demand"]])
 # ------------------ Dropdown + Plot ------------------
 selected_id = st.selectbox("Select Station ID", predictions["pickup_location_id"].unique())
 
-fig = plot_prediction(
-    features=features[features["pickup_location_id"] == selected_id],
-    prediction=predictions[predictions["pickup_location_id"] == selected_id],
-)
-st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+filtered_features = features[features["pickup_location_id"] == selected_id]
+filtered_prediction = predictions[predictions["pickup_location_id"] == selected_id]
+
+if not filtered_features.empty and not filtered_prediction.empty:
+    fig = plot_prediction(
+        features=filtered_features,
+        prediction=filtered_prediction,
+    )
+    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+else:
+    st.warning("No data available to plot for the selected station.")

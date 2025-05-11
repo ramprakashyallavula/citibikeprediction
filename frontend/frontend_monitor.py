@@ -1,59 +1,113 @@
 import sys
 from pathlib import Path
-
-parent_dir = str(Path(__file__).parent.parent)
-sys.path.append(parent_dir)
-
-
 import pandas as pd
-import plotly.express as px
+import altair as alt
 import streamlit as st
 
+# Add project root to PYTHONPATH
+parent_dir = str(Path(__file__).parent.parent)
+sys.path.append(parent_dir)
 from src.inference import fetch_hourly_rides, fetch_predictions
 
-st.title("Mean Absolute Error (MAE) by Pickup Hour")
+# --- APP CONFIGURATION ---
+st.set_page_config(
+    page_title='🛠️ Monitoring Dashboard',
+    layout='wide',
+    initial_sidebar_state='expanded'
+)
 
-# Sidebar for user input
+# --- HEADER ---
+st.markdown("# 🛠️ Monitoring Dashboard")
+st.markdown("**Analyze actual vs. predicted Citi Bike rides in real-time.**")
+st.markdown("---")
+
+# --- SIDEBAR CONTROLS ---
 st.sidebar.header("Settings")
-past_hours = st.sidebar.slider(
-    "Number of Past Hours to Plot",
-    min_value=12,  # Minimum allowed value
-    max_value=24 * 28,  # (Optional) Maximum allowed value
-    value=12,  # Initial/default value
-    step=1,  # Step size for increment/decrement
+time_window = st.sidebar.slider(
+    "Select Time Window (hours)",
+    min_value=1,
+    max_value=24 * 28,
+    value=24,
+    step=1
 )
+# Preload merged data to populate station list
+@st.cache_data(ttl=300)
+def get_station_list(hours):
+    dp = fetch_predictions(hours)
+    dr = fetch_hourly_rides(hours)
+    merged = pd.merge(dp, dr, on=['pickup_location_id','pickup_hour'], how='inner')
+    return merged['pickup_location_id'].unique().tolist()
+stations = get_station_list(time_window)
+selected_station = st.sidebar.selectbox("Station ID", stations)
+st.sidebar.markdown("---")
 
-# Fetch data
-st.write("Fetching data for the past", past_hours, "hours...")
-df1 = fetch_hourly_rides(past_hours)
-df2 = fetch_predictions(past_hours)
-print("mnbdsjhv")
-print(df1)
-print("sdwdsd")
-print(df2)
+# --- DATA LOADING & PROCESSING ---
+@st.cache_data(ttl=300)
+def load_station_data(station_id, hours):
+    df_pred = fetch_predictions(hours)
+    df_obs = fetch_hourly_rides(hours)
+    df = pd.merge(
+        df_pred, df_obs,
+        on=['pickup_location_id','pickup_hour'],
+        how='inner'
+    )
+    df = df[df['pickup_location_id'] == station_id]
+    df['timestamp'] = pd.to_datetime(df['pickup_hour'])
+    df.sort_values('timestamp', inplace=True)
+    return df
 
-# Merge the DataFrames on 'pickup_location_id' and 'pickup_hour'
-merged_df = pd.merge(df1, df2, on=["pickup_location_id", "pickup_hour"])
+data = load_station_data(selected_station, time_window)
+if data.empty:
+    st.warning("No data for this station in the selected window.")
+    st.stop()
 
-print(merged_df)
+# Compute errors and average MAE
+data['error'] = (data['predicted_demand'] - data['rides']).abs()
+avg_error = data['error'].mean()
 
-# Calculate the absolute error
-merged_df["absolute_error"] = abs(merged_df["predicted_demand"] - merged_df["rides"])
+# --- METRICS ---
+st.subheader(f"Station {selected_station} — Last {time_window} h")
+col1, col2, col3 = st.columns(3)
+col1.metric("Average Error", f"{avg_error:.2f}")
+col2.metric("Max Error", f"{data['error'].max():.2f}")
+col3.metric("Data Points", len(data))
+st.markdown("---")
 
-# Group by 'pickup_hour' and calculate the mean absolute error (MAE)
-mae_by_hour = merged_df.groupby("pickup_hour")["absolute_error"].mean().reset_index()
-mae_by_hour.rename(columns={"absolute_error": "MAE"}, inplace=True)
+# --- COMPARISON CHART ---
+st.subheader("Actual vs. Predicted Rides")
+comparison = alt.Chart(data).transform_fold(
+    ['rides','predicted_demand'],
+    as_=['Type','Value']
+).mark_line(point=True).encode(
+    x=alt.X('timestamp:T', title='Time'),
+    y=alt.Y('Value:Q', title='Ride Count'),
+    color='Type:N',
+    tooltip=['timestamp:T','Type:N','Value:Q']
+).properties(width=800, height=400).interactive()
+st.altair_chart(comparison, use_container_width=True)
 
-# Create a Plotly plot
-fig = px.line(
-    mae_by_hour,
-    x="pickup_hour",
-    y="MAE",
-    title=f"Mean Absolute Error (MAE) for the Past {past_hours} Hours",
-    labels={"pickup_hour": "Pickup Hour", "MAE": "Mean Absolute Error"},
-    markers=True,
+st.markdown("---")
+
+# --- ERROR OVER TIME WITH MAE HIGHLIGHT ---
+st.subheader("Error Over Time with MAE Highlight")
+# Base area chart
+base = alt.Chart(data).mark_area(opacity=0.3, color='#F77F00').encode(
+    x=alt.X('timestamp:T', title='Time'),
+    y=alt.Y('error:Q', title='Absolute Error'),
+    tooltip=['timestamp:T','error:Q']
 )
-
-# Display the plot
-st.plotly_chart(fig)
-st.write(f'Average MAE: {mae_by_hour["MAE"].mean()}')
+# MAE horizontal rule
+mae_rule = alt.Chart(pd.DataFrame({'MAE':[avg_error]})).mark_rule(color='red', strokeWidth=3).encode(
+    y='MAE:Q'
+)
+# Text label for MAE
+mae_text = alt.Chart(pd.DataFrame({'MAE':[avg_error]})).mark_text(
+    align='left', dx=5, dy=-5, color='red', fontWeight='bold'
+).encode(
+    y='MAE:Q',
+    x=alt.value(5),
+    text=alt.Text('MAE:Q', format=".2f")
+)
+# Combine charts
+err_chart = alt.layer(base, mae_rule, mae_text).properties(width=800, height=250)
+st.altair_chart(err_chart, use_container_width=True)

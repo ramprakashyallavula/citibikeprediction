@@ -51,7 +51,7 @@ def create_citibike_map(shapefile_gdf, prediction_data):
     gdf = shapefile_gdf.copy()
     gdf = gdf.merge(
         prediction_data[["pickup_location_id", "predicted_demand"]],
-        left_on="stationid",
+        left_on="stationid",   # adjust based on JC shape file column
         right_on="pickup_location_id",
         how="left"
     )
@@ -85,14 +85,6 @@ def create_citibike_map(shapefile_gdf, prediction_data):
             localize=True
         )
     ).add_to(m)
-    
-    for _, row in gdf.iterrows():
-        if pd.notna(row["predicted_demand"]):
-            folium.Marker(
-                location=[row.geometry.y, row.geometry.x],
-                popup=f"Station ID: {row['stationid']}<br>Predicted Demand: {int(row['predicted_demand'])}",
-                icon=folium.Icon(icon="map-marker", prefix="fa", color="blue")
-            ).add_to(m)
 
     st.session_state.map_obj = m
     st.session_state.map_created = True
@@ -148,14 +140,8 @@ st.dataframe(top10[["pickup_location_id", "predicted_demand"]])
 # ------------------ Dropdown + Plot ------------------
 selected_id = st.selectbox("Select Station ID", predictions["pickup_location_id"].unique())
 
-filtered_features = features[features["pickup_location_id"] == selected_id]
-filtered_prediction = predictions[predictions["pickup_location_id"] == selected_id]
-
-if not filtered_features.empty and not filtered_prediction.empty:
-    fig = plot_prediction(
-        features=filtered_features,
-        prediction=filtered_prediction,
-    )
-    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-else:
-    st.warning("No data available to plot for the selected station.")
+fig = plot_prediction(
+    features=features[features["pickup_location_id"] == selected_id],
+    prediction=predictions[predictions["pickup_location_id"] == selected_id],
+)
+st.plotly_chart(fig, theme="streamlit", use_container_width=True)

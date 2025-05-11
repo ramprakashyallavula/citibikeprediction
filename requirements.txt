@@ -1,5 +1,4 @@
 confluent-kafka
-folium
 geopandas
 hopsworks
 ipywidgets
@@ -15,7 +14,8 @@ requests
 scikit-learn
 seaborn
 streamlit
-streamlit-folium
 xgboost
 statsmodels
 pmdarima
+streamlit-folium>=0.11.0
+folium>=0.14.0
